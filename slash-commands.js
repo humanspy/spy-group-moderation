@@ -69,22 +69,3 @@ const commands = [
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
-
-// --------------------------------------------
-// REGISTER COMMANDS HERE
-// Change only ONE line below depending on your target:
-// --------------------------------------------
-
-// ✅ Register commands *only* in your guild (instant update)
-const GUILD_ID = process.env.DISCORD_GUILD_ID;
-const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
-
-(async () => {
-  try {
-    console.log("🔄 Refreshing slash commands...");
-    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
-    console.log("✅ Successfully registered guild commands.");
-  } catch (error) {
-    console.error("❌ Failed to register commands:", error);
-  }
-})();
