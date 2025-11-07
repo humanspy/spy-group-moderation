@@ -12,6 +12,25 @@ import fs from "fs/promises";
 import bcrypt from "bcrypt";
 import { organizeCasesToFolder } from "./organize-cases.js";
 
+// --- Always run command deployment scripts before bot starts ---
+import { execSync } from "child_process";
+import fs from "fs";
+
+const deployScripts = ["./deploy-commands.js"];
+
+for (const script of deployScripts) {
+  if (fs.existsSync(script)) {
+    try {
+      console.log(`📦 Running ${script}...`);
+      execSync(`node ${script}`, { stdio: "inherit" });
+      console.log(`✅ Finished ${script}`);
+    } catch (error) {
+      console.error(`❌ Error running ${script}:`, error.message);
+    }
+  } else {
+    console.log(`⚠️ ${script} not found (skipped)`);
+  }
+}
 // --- Load config ---
 const config = JSON.parse(await fs.readFile("./config.json", "utf-8"));
 
