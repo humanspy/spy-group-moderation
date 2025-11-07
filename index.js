@@ -14,8 +14,6 @@ import { organizeCasesToFolder } from "./organize-cases.js";
 
 // --- Always run command deployment scripts before bot starts ---
 import { execSync } from "child_process";
-import fs from "fs";
-
 const deployScripts = ["./deploy-commands.js"];
 
 for (const script of deployScripts) {
