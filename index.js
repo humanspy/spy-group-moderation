@@ -2126,7 +2126,7 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 }) // closes the switch
-); // closes the interactionCreate listener
+; // closes the interactionCreate listener
 
 // --- Login ---
 const token = process.env.DISCORD_BOT_TOKEN;
