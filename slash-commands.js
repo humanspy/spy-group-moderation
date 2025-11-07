@@ -1,231 +1,90 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+// deploy-commands.js
+import "dotenv/config";
+import { REST, Routes, SlashCommandBuilder } from "discord.js";
 
-export const commands = [
-  new SlashCommandBuilder()
-    .setName('clearwarnings')
-    .setDescription('Clear all warnings for a user')
-    .addUserOption(option =>
-      option
-        .setName('user')
-        .setDescription('The user to clear warnings for')
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(null),
+const commands = [
 
   new SlashCommandBuilder()
-    .setName('warn')
-    .setDescription('Warn a user with optional timeout')
-    .addUserOption(option =>
-      option
-        .setName('user')
-        .setDescription('The user to warn')
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName('reason')
-        .setDescription('The reason for the warning')
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName('severity')
-        .setDescription('Warning severity level')
-        .setRequired(false)
-        .addChoices(
-          { name: '⚠️ Minor', value: 'minor' },
-          { name: '🔶 Moderate', value: 'moderate' },
-          { name: '🔴 Severe', value: 'severe' }
-        )
-    )
-    .addIntegerOption(option =>
-      option
-        .setName('timeout')
-        .setDescription('Timeout duration in minutes (optional)')
-        .setRequired(false)
-        .setMinValue(1)
-        .setMaxValue(40320)
-    )
-    .addBooleanOption(option =>
-      option
-        .setName('silent')
-        .setDescription('Skip sending DM to user (default: false)')
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(null),
+    .setName("warn")
+    .setDescription("Warn a user")
+    .addUserOption(o => o.setName("user").setDescription("User to warn").setRequired(true))
+    .addStringOption(o => o.setName("reason").setDescription("Reason").setRequired(true))
+    .addStringOption(o => o.setName("severity").setDescription("minor / moderate / severe"))
+    .addIntegerOption(o => o.setName("timeout").setDescription("Timeout in minutes"))
+    .addBooleanOption(o => o.setName("silent").setDescription("Don't send DM")),
 
   new SlashCommandBuilder()
-    .setName('purge')
-    .setDescription('Delete multiple messages at once')
-    .addIntegerOption(option =>
-      option
-        .setName('amount')
-        .setDescription('Number of messages to delete (1-1000)')
-        .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(1000)
-    )
-    .addUserOption(option =>
-      option
-        .setName('user')
-        .setDescription('Only delete messages from this user (optional)')
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(null),
+    .setName("case")
+    .setDescription("Lookup cases")
+    .addIntegerOption(o => o.setName("number").setDescription("Case number"))
+    .addUserOption(o => o.setName("user").setDescription("Search by user"))
+    .addStringOption(o => o.setName("severity").setDescription("minor / moderate / severe")),
 
   new SlashCommandBuilder()
-    .setName('help')
-    .setDescription('Show all available moderation commands'),
+    .setName("clearwarnings")
+    .setDescription("Clear all warnings for a user")
+    .addUserOption(o => o.setName("user").setDescription("User").setRequired(true)),
 
   new SlashCommandBuilder()
-    .setName('timeout')
-    .setDescription('Timeout a user without warning')
-    .addUserOption(option =>
-      option
-        .setName('user')
-        .setDescription('The user to timeout')
-        .setRequired(true)
-    )
-    .addIntegerOption(option =>
-      option
-        .setName('duration')
-        .setDescription('Timeout duration in minutes')
-        .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(40320)
-    )
-    .addStringOption(option =>
-      option
-        .setName('reason')
-        .setDescription('The reason for the timeout')
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(null),
+    .setName("purge")
+    .setDescription("Delete messages")
+    .addIntegerOption(o => o.setName("amount").setDescription("Amount").setRequired(true))
+    .addUserOption(o => o.setName("user").setDescription("Only remove messages from this user")),
 
   new SlashCommandBuilder()
-    .setName('case')
-    .setDescription('Search cases by number, user, or severity')
-    .addIntegerOption(option =>
-      option
-        .setName('number')
-        .setDescription('Case number')
-        .setRequired(false)
-    )
-    .addUserOption(option =>
-      option
-        .setName('user')
-        .setDescription('User to search cases for')
-        .setRequired(false)
-    )
-    .addStringOption(option =>
-      option
-        .setName('severity')
-        .setDescription('Filter by severity')
-        .setRequired(false)
-        .addChoices(
-          { name: '⚠️ Minor', value: 'minor' },
-          { name: '🔶 Moderate', value: 'moderate' },
-          { name: '🔴 Severe', value: 'severe' }
-        )
-    )
-    .setDefaultMemberPermissions(null),
+    .setName("kick")
+    .setDescription("Kick a user")
+    .addUserOption(o => o.setName("user").setDescription("User").setRequired(true))
+    .addStringOption(o => o.setName("reason").setDescription("Reason").setRequired(true)),
 
   new SlashCommandBuilder()
-    .setName('deletecase')
-    .setDescription('Delete a case and optionally revert the warning')
-    .addIntegerOption(option =>
-      option
-        .setName('number')
-        .setDescription('Case number to delete')
-        .setRequired(true)
-    )
-    .addBooleanOption(option =>
-      option
-        .setName('revert_warn')
-        .setDescription('Revert the warning count for this user (default: false)')
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(null),
+    .setName("timeout")
+    .setDescription("Timeout a user")
+    .addUserOption(o => o.setName("user").setDescription("User").setRequired(true))
+    .addIntegerOption(o => o.setName("duration").setDescription("Minutes").setRequired(true))
+    .addStringOption(o => o.setName("reason").setDescription("Reason").setRequired(true)),
 
   new SlashCommandBuilder()
-    .setName('kick')
-    .setDescription('Kick a user from the server')
-    .addUserOption(option =>
-      option
-        .setName('user')
-        .setDescription('The user to kick')
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName('reason')
-        .setDescription('The reason for the kick')
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(null),
+    .setName("ban")
+    .setDescription("Ban a user")
+    .addStringOption(o => o.setName("target").setDescription("User mention or ID").setRequired(true))
+    .addStringOption(o => o.setName("reason").setDescription("Reason").setRequired(true))
+    .addBooleanOption(o => o.setName("hackban").setDescription("Ban by ID (even if not in server)"))
+    .addIntegerOption(o => o.setName("delete_days").setDescription("Delete message history (0-7)"))
+    .addStringOption(o => o.setName("override_code").setDescription("Override code")),
 
   new SlashCommandBuilder()
-    .setName('ban')
-    .setDescription('Ban a user from the server')
-    .addStringOption(option =>
-      option
-        .setName('target')
-        .setDescription('User to ban (@mention or User ID)')
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName('reason')
-        .setDescription('The reason for the ban')
-        .setRequired(true)
-    )
-    .addBooleanOption(option =>
-      option
-        .setName('hackban')
-        .setDescription('Enable hackban mode (ban user not in server)')
-        .setRequired(false)
-    )
-    .addIntegerOption(option =>
-      option
-        .setName('delete_days')
-        .setDescription('Delete message history (0-7 days, default: 0)')
-        .setRequired(false)
-        .setMinValue(0)
-        .setMaxValue(7)
-    )
-    .addStringOption(option =>
-      option
-        .setName('override_code')
-        .setDescription('Override code (for Trial Moderators/Moderators)')
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(null),
+    .setName("unban")
+    .setDescription("Unban a user")
+    .addStringOption(o => o.setName("user_id").setDescription("User ID"))
+    .addStringOption(o => o.setName("reason").setDescription("Reason"))
+    .addStringOption(o => o.setName("override_code").setDescription("Override code")),
 
   new SlashCommandBuilder()
-    .setName('generatebancode')
-    .setDescription('Generate a one-time ban override code for Trial Moderators/Moderators')
-    .setDefaultMemberPermissions(null),
+    .setName("deletecase")
+    .setDescription("Delete a case by number")
+    .addIntegerOption(o => o.setName("number").setDescription("Case number").setRequired(true))
+    .addBooleanOption(o => o.setName("revert_warn").setDescription("Undo the warning?")),
 
-  new SlashCommandBuilder()
-    .setName('unban')
-    .setDescription('Unban a user from the server')
-    .addStringOption(option =>
-      option
-        .setName('user_id')
-        .setDescription('User ID to unban (leave empty to see banned list)')
-        .setRequired(false)
-    )
-    .addStringOption(option =>
-      option
-        .setName('reason')
-        .setDescription('Reason for unbanning')
-        .setRequired(false)
-    )
-    .addStringOption(option =>
-      option
-        .setName('override_code')
-        .setDescription('Override code (for Trial Moderators/Moderators)')
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(null),
-].map(command => command.toJSON());
+].map(c => c.toJSON());
+
+const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
+
+// --------------------------------------------
+// REGISTER COMMANDS HERE
+// Change only ONE line below depending on your target:
+// --------------------------------------------
+
+// ✅ Register commands *only* in your guild (instant update)
+const GUILD_ID = process.env.DISCORD_GUILD_ID;
+const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+
+(async () => {
+  try {
+    console.log("🔄 Refreshing slash commands...");
+    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
+    console.log("✅ Successfully registered guild commands.");
+  } catch (error) {
+    console.error("❌ Failed to register commands:", error);
+  }
+})();
