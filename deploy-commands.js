@@ -11,16 +11,6 @@ if (!token) {
   process.exit(1);
 }
 
-if (!guildId) {
-  console.error('❌ Missing environment variable: DISCORD_GUILD_ID — this script only registers guild-specific commands');
-  process.exit(1);
-}
-
-
-  console.error('❌ Missing environment variable: DISCORD_BOT_TOKEN');
-  process.exit(1);
-}
-
 if (!clientId) {
   console.error('❌ Missing environment variable: DISCORD_CLIENT_ID');
   process.exit(1);

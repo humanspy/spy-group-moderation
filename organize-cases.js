@@ -5,7 +5,16 @@ export async function organizeCasesToFolder(caseData = null) {
   try {
     // Load cases from parameter or file
     const casesData = caseData || JSON.parse(await fs.readFile('./cases.json', 'utf-8'));
-    const cases = casesData.cases || [];
+    let cases = [];
+    if (Array.isArray(casesData.cases)) {
+      cases = casesData.cases;
+    } else if (casesData && typeof casesData === 'object') {
+      // guild-scoped: { [guildId]: { cases: [] } }
+      for (const gid of Object.keys(casesData)) {
+        const g = casesData[gid];
+        if (g && Array.isArray(g.cases)) cases.push(...g.cases);
+      }
+    }
 
     // Create cases folder if it doesn't exist
     await fs.mkdir('./cases', { recursive: true });

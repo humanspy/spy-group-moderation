@@ -104,21 +104,31 @@ export const commands = [
 
   new SlashCommandBuilder()
     .setName('case')
-    .setDescription('Search cases by number or username')
+    .setDescription('Search cases by number, user, or severity')
     .addIntegerOption(option =>
       option
-        .setName('Number')
+        .setName('number')
         .setDescription('Case number')
         .setRequired(false)
-    }
-      .addUserOption(option =>
+    )
+    .addUserOption(option =>
       option
         .setName('user')
-        .setDescription('The user to Search')
+        .setDescription('User to search cases for')
         .setRequired(false)
     )
+    .addStringOption(option =>
+      option
+        .setName('severity')
+        .setDescription('Filter by severity')
+        .setRequired(false)
+        .addChoices(
+          { name: '⚠️ Minor', value: 'minor' },
+          { name: '🔶 Moderate', value: 'moderate' },
+          { name: '🔴 Severe', value: 'severe' }
+        )
+    )
     .setDefaultMemberPermissions(null),
-
 
   new SlashCommandBuilder()
     .setName('deletecase')

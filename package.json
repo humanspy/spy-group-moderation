@@ -5,10 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node auto-deploy.js",
+    "start": "node index.js",
     "deploy": "node deploy-commands.js",
-    "organize-cases": "node organize-cases.js",
-    "postinstall": "node deploy-commands.js"
+    "organize-cases": "node organize-cases.js"
   },
   "keywords": [
     "discord",
@@ -19,10 +18,7 @@
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "connect-sqlite3": "^0.9.16",
     "discord.js": "^14.24.2",
-    "dotenv": "^17.2.3",
-    "express-session": "^1.18.2",
-    "chokidar": "^3.5.3"
+    "dotenv": "^17.2.3"
   }
 }
