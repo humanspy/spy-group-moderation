@@ -1,9 +1,6 @@
-// deploy-commands.js
-import "dotenv/config";
-import { REST, Routes, SlashCommandBuilder } from "discord.js";
-
-const commands = [
-
+import { SlashCommandBuilder } from "discord.js";
+export const commands = [
+  
   new SlashCommandBuilder()
     .setName("warn")
     .setDescription("Warn a user")
@@ -66,6 +63,6 @@ const commands = [
     .addIntegerOption(o => o.setName("number").setDescription("Case number").setRequired(true))
     .addBooleanOption(o => o.setName("revert_warn").setDescription("Undo the warning?")),
 
-].map(c => c.toJSON());
+].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
