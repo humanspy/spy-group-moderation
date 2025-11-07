@@ -67,19 +67,7 @@ const staffRoleIds = Object.keys(roleHierarchy);
 
 // --- Load warnings ---
 
-// --- Load & Save warnings (guild-scoped) ---
-async function loadAllWarnings() {
-  try {
-    const data = await fs.readFile("./warnings.json", "utf-8");
-    return JSON.parse(data);
-  } catch {
-    return {}; // { [guildId]: { [userId]: { username, count, history[] } } }
-  }
-}
 
-async function saveAllWarnings(all) {
-  await fs.writeFile("./warnings.json", JSON.stringify(all, null, 2));
-}
 
 
 // --- Load & Save warnings (guild-scoped) ---
