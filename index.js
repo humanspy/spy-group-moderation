@@ -2125,7 +2125,7 @@ client.on("interactionCreate", async (interaction) => {
       }
     }
   }
-} // closes the switch
+}) // closes the switch
 }); // closes the interactionCreate listener
 
 // --- Login ---
