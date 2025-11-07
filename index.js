@@ -12,23 +12,23 @@ import fs from "fs/promises";
 import bcrypt from "bcrypt";
 import { organizeCasesToFolder } from "./organize-cases.js";
 
-// --- Always run command deployment scripts before bot starts ---
+// --- Always run deploy-commands.js before starting the bot ---
 import { execSync } from "child_process";
-const deployScripts = ["./deploy-commands.js"];
+import { existsSync } from "fs";
 
-for (const script of deployScripts) {
-  if (fs.existsSync(script)) {
-    try {
-      console.log(`📦 Running ${script}...`);
-      execSync(`node ${script}`, { stdio: "inherit" });
-      console.log(`✅ Finished ${script}`);
-    } catch (error) {
-      console.error(`❌ Error running ${script}:`, error.message);
-    }
-  } else {
-    console.log(`⚠️ ${script} not found (skipped)`);
+if (existsSync("./deploy-commands.js")) {
+  try {
+    console.log("📦 Deploying slash commands...");
+    execSync("node ./deploy-commands.js", { stdio: "inherit" });
+    console.log("✅ Slash commands deployed successfully.");
+  } catch (error) {
+    console.error("❌ Failed to deploy commands:", error);
   }
+} else {
+  console.log("⚠️ deploy-commands.js not found — skipping slash command deployment.");
 }
+
+
 // --- Load config ---
 const config = JSON.parse(await fs.readFile("./config.json", "utf-8"));
 
