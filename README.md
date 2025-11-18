@@ -29,7 +29,7 @@ A Discord moderation bot with manual moderation tools including warnings trackin
 
 ### 1. Create a Discord Bot
 
-1. Go to [Discord Developer Portal]()
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
 2. Click "New Application" and give it a name
 3. Go to the "Bot" section in the left sidebar
 4. Click "Add Bot"
@@ -116,5 +116,5 @@ The `config.json` file contains bot settings:
 ## Support
 
 For issues or questions, check:
-- Discord.js documentation: 
-- Discord Developer Portal: 
+- Discord.js documentation: https://discord.js.org/
+- Discord Developer Portal: https://discord.com/developers/
