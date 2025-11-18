@@ -12,6 +12,7 @@ import fs from "fs/promises";
 import bcrypt from "bcrypt";
 import { organizeCasesToFolder } from "./organize-cases.js";
 
+
 // --- Always run deploy-commands.js before starting the bot ---
 import { execSync } from "child_process";
 import { existsSync } from "fs";
@@ -2145,6 +2146,22 @@ client.on("interactionCreate", async (interaction) => {
 }) // closes the switch
 ; // closes the interactionCreate listener
 
+import { Client, GatewayIntentBits } from "discord.js";
+import { ensureDataPath } from "./utils/storage.js";
+
+// Make sure /data (or ./data locally) exists
+await ensureDataPath();
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages
+  ]
+});
+
+client.on("ready", () => {
+  console.log(`Logged in as ${client.user.tag}`);
+});
 // --- Login ---
 const token = process.env.DISCORD_BOT_TOKEN;
 if (!token) {
