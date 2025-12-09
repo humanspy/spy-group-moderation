@@ -699,6 +699,39 @@ client.on("messageCreate", async (message) => {
   }
 });
 
+// --- Check if user has permission for command ---
+// (Place this above the interactionCreate listener)
+function hasPermission(member, commandName) {
+  if (!member) return false;
+
+  // 1) user-specific overrides (take precedence)
+  const override = userOverrides[member.id];
+  if (override) {
+    const perms = override.permissions;
+
+    // perms can be "all"
+    if (perms === "all") return true;
+
+    // perms can be an array
+    if (Array.isArray(perms) && perms.includes(commandName)) return true;
+  }
+
+  // 2) role-hierarchy based permissions
+  const highestRole = getHighestStaffRole(member);
+  if (!highestRole) return false;
+
+  const perms = highestRole.permissions;
+
+  // perms can be "all"
+  if (perms === "all") return true;
+
+  // perms can be an array
+  if (Array.isArray(perms) && perms.includes(commandName)) return true;
+
+  return false;
+}
+
+
 // --- Slash command handling ---
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
