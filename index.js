@@ -91,11 +91,11 @@ const staffRoleIds = Object.keys(roleHierarchy);
 // Put user IDs in your environment variables and they will be applied here.
 const userOverrides = {
   [process.env.human]: {
-    name: "Bot Owner",
+    name: "human",
     level: -1, // higher priority than any staff role
     permissions: "all"
   },
-  [process.env.DISCORDBT_COwner]: {
+  [process.env.neena]: {
     name: "neena",
     level: -1,
     permissions: "all"
