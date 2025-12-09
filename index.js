@@ -55,7 +55,7 @@ const userOverrides = {
   [process.env.neena]: { name: "neena", level: -1, permissions: "all" },
 };
 
-// --- Files helpers (warnings, cases, override codes, users) ---
+// - Files helpers (warnings, cases, override codes, users) -
 async function loadJSON(path, fallback) {
   try {
     const data = await fs.readFile(path, "utf-8");
@@ -217,7 +217,7 @@ async function validateAndUseOverrideCode(code, userId) {
   return codeData;
 }
 
-// --- Users file for web viewer (simple fallback) ---
+// - Users file for web viewer (simple fallback) -
 async function loadUsers() {
   return loadJSON("./users.json", {});
 }
@@ -247,7 +247,7 @@ async function getUserByDiscordId(discordId) {
   return users[discordId] || null;
 }
 
-// --- Helpers for override detection and staff resolution ---
+// - Helpers for override detection and staff resolution -
 function isUserOverridden(userId) {
   return !!userOverrides[userId];
 }
@@ -312,7 +312,7 @@ function hasPermission(member, commandName) {
   return false;
 }
 
-// --- Duration parsing and labels (fixed-choice durations) ---
+// - Duration parsing and labels (fixed-choice durations) -
 function parseDurationChoice(input) {
   if (typeof input === "number") return input;
   if (!input) return null;
@@ -351,7 +351,7 @@ function getDurationLabel(minutes) {
   return labels[minutes] || `${minutes} minute(s)`;
 }
 
-// --- Discord client setup ---
+// - Discord client setup -
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -361,7 +361,7 @@ const client = new Client({
   ],
 });
 
-// --- Periodic: Check and send pending override codes (auto-generated after 24h) ---
+// - Periodic: Check and send pending override codes (auto-generated after 24h) -
 async function checkAndSendPendingOverrideCodes() {
   try {
     const overrideData = await loadOverrideCodes();
@@ -413,7 +413,7 @@ async function checkAndSendPendingOverrideCodes() {
   }
 }
 
-// --- Logging helper (respects overrides) ---
+// - Logging helper (respects overrides) -
 async function sendLogIfNotOverridden(guild, logChannelId, embed, actorId) {
   try {
     if (!logChannelId) return;
@@ -433,7 +433,7 @@ async function sendLogIfNotOverridden(guild, logChannelId, embed, actorId) {
   }
 }
 
-// --- Ready event ---
+// - Ready event -
 client.once("ready", async () => {
   console.log(`✅ Bot is online as ${client.user.tag}`);
   console.log(`📊 Serving ${client.guilds.cache.size} server(s)`);
@@ -452,7 +452,7 @@ client.once("ready", async () => {
   setInterval(checkAndSendPendingOverrideCodes, 60 * 60 * 1000);
 });
 
-// --- Sync web viewer role color on member update ---
+// - Sync web viewer role color on member update -
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
   if (!isModerator(newMember)) return;
   const existingUser = await getUserByDiscordId(newMember.id);
@@ -480,7 +480,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
   }
 });
 
-// --- Simple message prefix purge (kept for compatibility) ---
+// - Simple message prefix purge (kept for compatibility) -
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
   if (message.content.startsWith("!purge")) {
@@ -501,7 +501,7 @@ client.on("messageCreate", async (message) => {
   }
 });
 
-// --- Interaction handling (slash commands) ---
+// - Interaction handling (slash commands) -
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (!interaction.inGuild()) {
@@ -514,7 +514,7 @@ client.on("interactionCreate", async (interaction) => {
   const warnings = await loadWarnings(interaction.guild.id);
   switch (interaction.commandName) {
 
-    // ---------- clearwarnings ----------
+    //  clearwarnings 
     case "clearwarnings": {
       if (!hasPermission(interaction.member, "clearwarnings")) {
         const role = getHighestStaffRole(interaction.member);
@@ -545,7 +545,7 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ embeds: [clearEmbed], ephemeral: true });
     }
 
-    // ---------- warn ----------
+    //  warn 
     case "warn": {
       if (!hasPermission(interaction.member, "warn")) {
         const role = getHighestStaffRole(interaction.member);
@@ -648,7 +648,7 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ embeds: [responseEmbed], ephemeral: true });
     }
 
-    // ---------- purge ----------
+    //  purge 
     case "purge": {
       const amount = interaction.options.getInteger("amount");
       const targetUser = interaction.options.getUser("user");
@@ -679,7 +679,7 @@ client.on("interactionCreate", async (interaction) => {
       }
     }
 
-    // ---------- help ----------
+    //  help 
     case "help": {
       const helpEmbed = new EmbedBuilder()
         .setColor(0x3498db)
@@ -702,51 +702,131 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ embeds: [helpEmbed], ephemeral: true });
     }
 
-    // ---------- timeout (fixed choices) ----------
+    //  timeout (fixed choices) ----------
     case "timeout": {
-      // Use Discord's built-in ModerateMembers permission as the primary gate
-      const actor = interaction.member;
-      const hasDiscordModerate = actor ? actor.permissions.has(PermissionsBitField.Flags.ModerateMembers) : false;
-      const hasCustomPermission = hasPermission(interaction.member, "timeout");
-      if (!hasDiscordModerate && !hasCustomPermission) {
+      // Only use your custom permission system
+      if (!hasPermission(interaction.member, "timeout")) {
         const role = getHighestStaffRole(interaction.member);
-        return interaction.reply({ content: `❌ You need the Discord **Moderate Members** permission (or the appropriate staff role) to use this command.`, ephemeral: true });
+        return interaction.reply({
+          content: `❌ Your role **${role ? role.name : "Unknown"}** does not have permission to use this command.`,
+          ephemeral: true
+        });
       }
+    
       const targetUser = interaction.options.getUser("user");
-      const durationChoice = interaction.options.getString("duration"); // expects "1min", "5min", "10min", "1hour", "1day", "1week"
+      const durationChoice = interaction.options.getString("duration"); // "1min", "5min", "10min", "1hour", "1day", "1week"
       const parsedDuration = parseDurationChoice(durationChoice);
+    
       if (!parsedDuration || parsedDuration <= 0) {
-        const errorEmbed = new EmbedBuilder().setColor(0xe74c3c).setTitle("❌ Invalid Duration").setDescription("Please provide a valid duration. Allowed choices: `1min`, `5min`, `10min`, `1hour`, `1day`, `1week`.").setTimestamp();
+        const errorEmbed = new EmbedBuilder()
+          .setColor(0xe74c3c)
+          .setTitle("❌ Invalid Duration")
+          .setDescription(
+            "Please provide a valid duration. Allowed: `1min`, `5min`, `10min`, `1hour`, `1day`, `1week`."
+          )
+          .setTimestamp();
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       }
+    
       const duration = parsedDuration;
       const reason = interaction.options.getString("reason");
+    
+      // Check if target is staff
       try {
         const member = await interaction.guild.members.fetch(targetUser.id);
         const targetStaffRole = getHighestStaffRole(member);
+    
         if (targetStaffRole && !isUserOverridden(interaction.user.id)) {
-          const errorEmbed = new EmbedBuilder().setColor(0xe74c3c).setTitle("❌ Cannot Timeout Staff Member").setDescription(`**${targetUser.tag}** is a staff member and cannot be timed out by you.`).addFields({ name: "Target Role", value: targetStaffRole.name, inline: true }, { name: "Reason", value: "Staff members are immune to timeouts", inline: false }).setTimestamp();
+          const errorEmbed = new EmbedBuilder()
+            .setColor(0xe74c3c)
+            .setTitle("❌ Cannot Timeout Staff Member")
+            .setDescription(`**${targetUser.tag}** is a staff member and cannot be timed out by you.`)
+            .addFields(
+              { name: "Target Role", value: targetStaffRole.name, inline: true },
+              { name: "Reason", value: "Staff members are immune to timeouts", inline: false }
+            )
+            .setTimestamp();
           return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
+    
         await member.timeout(duration * 60 * 1000, reason);
       } catch (error) {
         console.error(`Failed to timeout ${targetUser.tag}:`, error.message);
-        const errorEmbed = new EmbedBuilder().setColor(0xe74c3c).setTitle("❌ Timeout Failed").setDescription(`Failed to timeout **${targetUser.tag}**`).addFields({ name: "Reason", value: "Missing permissions or user is an administrator", inline: false }, { name: "User", value: targetUser.tag, inline: true }, { name: "Requested Duration", value: `${getDurationLabel(duration)} (${duration} minute(s))`, inline: true }).setTimestamp();
+        const errorEmbed = new EmbedBuilder()
+          .setColor(0xe74c3c)
+          .setTitle("❌ Timeout Failed")
+          .setDescription(`Failed to timeout **${targetUser.tag}**`)
+          .addFields(
+            { name: "Reason", value: "Missing permissions or user is an administrator", inline: false },
+            { name: "User", value: targetUser.tag, inline: true },
+            { name: "Requested Duration", value: `${getDurationLabel(duration)} (${duration} minute(s))`, inline: true }
+          )
+          .setTimestamp();
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       }
-      let caseNumber = null;
+    
+      // Case creation (respects override invisibility)
       const actorIsOverridden = isUserOverridden(interaction.user.id);
-      const actorHasRealStaffRole = interaction.member ? interaction.member.roles.cache.some((r) => staffRoleIds.includes(r.id)) : false;
+      const actorHasRealStaffRole = interaction.member
+        ? interaction.member.roles.cache.some((r) => staffRoleIds.includes(r.id))
+        : false;
+    
+      let caseNumber = null;
+    
       if (!actorIsOverridden || (actorIsOverridden && actorHasRealStaffRole)) {
-        caseNumber = await createCase(interaction.guild.id, "timeout", targetUser.id, targetUser.username, interaction.user.id, interaction.user.tag, reason, null, duration, targetUser.displayAvatarURL({ dynamic: true }), interaction.user.displayAvatarURL({ dynamic: true }));
+        caseNumber = await createCase(
+          interaction.guild.id,
+          "timeout",
+          targetUser.id,
+          targetUser.username,
+          interaction.user.id,
+          interaction.user.tag,
+          reason,
+          null,
+          duration,
+          targetUser.displayAvatarURL({ dynamic: true }),
+          interaction.user.displayAvatarURL({ dynamic: true })
+        );
       } else {
         console.log(`Override user ${interaction.user.tag} issued a timeout — skipping case creation (Option B).`);
       }
+    
+      // Logging (respects override invisibility)
       try {
-        const logEmbed = new EmbedBuilder().setColor(0xff9900).setTitle("⏱️ Member Timed Out").setThumbnail(targetUser.displayAvatarURL()).addFields({ name: "Member", value: `${targetUser.tag} (${targetUser.id})`, inline: true }, { name: "Case #", value: caseNumber ? `#${caseNumber}` : "N/A", inline: true }, { name: "Moderator", value: `${interaction.user.tag}`, inline: true }, { name: "Duration", value: `${getDurationLabel(duration)} (${duration} minute(s))`, inline: true }, { name: "Reason", value: reason }).setTimestamp().setFooter({ text: `User ID: ${targetUser.id}` });
+        const logEmbed = new EmbedBuilder()
+          .setColor(0xff9900)
+          .setTitle("⏱️ Member Timed Out")
+          .setThumbnail(targetUser.displayAvatarURL())
+          .addFields(
+            { name: "Member", value: `${targetUser.tag} (${targetUser.id})`, inline: true },
+            { name: "Case #", value: caseNumber ? `#${caseNumber}` : "N/A", inline: true },
+            { name: "Moderator", value: `${interaction.user.tag}`, inline: true },
+            { name: "Duration", value: `${getDurationLabel(duration)} (${duration} minute(s))`, inline: true },
+            { name: "Reason", value: reason }
+          )
+          .setTimestamp()
+          .setFooter({ text: `User ID: ${targetUser.id}` });
+    
         await sendLogIfNotOverridden(interaction.guild, LOG_CHANNEL, logEmbed, interaction.user.id);
-      } catch (error) { console.error(`Failed to send log to channel:`, error.message); }
-      const timeoutEmbed = new EmbedBuilder().setColor(0xff9900).setTitle("⏱️ Timeout Issued").setDescription(`Successfully timed out **${targetUser.tag}**`).setThumbnail(targetUser.displayAvatarURL()).addFields({ name: "Case Number", value: caseNumber ? `#${caseNumber}` : "N/A", inline: true }, { name: "Duration", value: `${getDurationLabel(duration)} (${duration} minute(s))`, inline: true }, { name: "Moderator", value: interaction.user.tag, inline: true }, { name: "Reason", value: reason, inline: false }).setTimestamp().setFooter({ text: `User ID: ${targetUser.id}` });
+      } catch (error) {
+        console.error(`Failed to send log to channel:`, error.message);
+      }
+    
+      // Response
+      const timeoutEmbed = new EmbedBuilder()
+        .setColor(0xff9900)
+        .setTitle("⏱️ Timeout Issued")
+        .setDescription(`Successfully timed out **${targetUser.tag}**`)
+        .setThumbnail(targetUser.displayAvatarURL())
+        .addFields(
+          { name: "Case Number", value: caseNumber ? `#${caseNumber}` : "N/A", inline: true },
+          { name: "Duration", value: `${getDurationLabel(duration)} (${duration} minute(s))`, inline: true },
+          { name: "Moderator", value: interaction.user.tag, inline: true },
+          { name: "Reason", value: reason, inline: false }
+        )
+        .setTimestamp()
+        .setFooter({ text: `User ID: ${targetUser.id}` });
+    
       return interaction.reply({ embeds: [timeoutEmbed], ephemeral: true });
     }
 
