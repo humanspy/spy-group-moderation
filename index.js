@@ -1544,78 +1544,78 @@ client.on("interactionCreate", async (interaction) => {
           text: "A new code will be automatically generated after this one is used",
         });
 
-     // Send to the designated channel or DM the actor depending on override + staff status
-    try {
-      const codeChannel = await interaction.guild.channels.fetch(OVERRIDE_CODE_CHANNEL);
-      if (!codeChannel) {
+      // Send to the designated channel or DM the actor depending on override + staff status
+      try {
+        const codeChannel = await interaction.guild.channels.fetch(OVERRIDE_CODE_CHANNEL);
+        if (!codeChannel) {
+          return interaction.reply({
+            content: `❌ Could not find the override code channel.`,
+            ephemeral: true,
+          });
+        }
+      
+        const isOverridden = isUserOverridden(interaction.user.id);
+        const actorIsStaff = isModerator(interaction.member);
+      
+        // allow posting when: not overridden (regular) OR overridden but also staff
+        const shouldPostPublicly = !isOverridden || (isOverridden && actorIsStaff);
+      
+        if (shouldPostPublicly) {
+          // Post to the override-code channel
+          await codeChannel.send({ embeds: [codeEmbed] });
+      
+          // Mark manually requested existing codes as sent to channel
+          if (!wasGenerated) {
+            const overrideDataUpdate = await loadOverrideCodes();
+            const codeIndex = overrideDataUpdate.codes.findIndex((c) => c.code === code);
+            if (codeIndex !== -1) {
+              overrideDataUpdate.codes[codeIndex].sentToChannel = true;
+              await saveOverrideCodes(overrideDataUpdate);
+            }
+          }
+      
+          // Log generation to LOG_CHANNEL unless actor overridden (sendLogIfNotOverridden checks this)
+          await sendLogIfNotOverridden(interaction.guild, LOG_CHANNEL, codeEmbed, interaction.user.id);
+      
+          const sentReply = { content: `✅ Override code has been sent to <#${OVERRIDE_CODE_CHANNEL}>`, ephemeral: true };
+          return interaction.reply(sentReply);
+        } else {
+          // Actor is overridden and NOT staff -> send DM privately and do NOT mark sentToChannel
+          let dmSent = false;
+          const privateEmbed = new EmbedBuilder()
+            .setColor(0x2ecc71)
+            .setTitle("🔐 Override Code (Private)")
+            .setDescription("You generated or viewed an override code. It was not posted publicly.")
+            .addFields(
+              { name: "Override Code", value: `\`${code}\`` },
+              { name: "Valid For", value: "One-time use only" },
+              { name: "Command", value: "Ban" },
+            )
+            .setTimestamp();
+      
+          try {
+            await interaction.user.send({ embeds: [privateEmbed] });
+            dmSent = true;
+          } catch (dmError) {
+            console.error(`Failed to DM override code to ${interaction.user.tag}:`, dmError);
+            dmSent = false;
+          }
+      
+          // Reply ephemerally to confirm (so the user sees immediate feedback)
+          if (dmSent) {
+            return interaction.reply({ content: `✅ Override code generated and sent to your DMs (private).`, ephemeral: true });
+          } else {
+            return interaction.reply({ content: `⚠️ Override code generated but I couldn't DM you (check your privacy settings).`, ephemeral: true });
+          }
+        }
+      } catch (error) {
+        console.error("Failed to send override code to channel/DM:", error);
         return interaction.reply({
-          content: `❌ Could not find the override code channel.`,
+          content: `❌ Failed to deliver override code.`,
           ephemeral: true,
         });
       }
-    
-      const isOverridden = isUserOverridden(interaction.user.id);
-      const actorIsStaff = isModerator(interaction.member);
-    
-      // allow posting when: not overridden (regular) OR overridden but also staff
-      const shouldPostPublicly = !isOverridden || (isOverridden && actorIsStaff);
-    
-      if (shouldPostPublicly) {
-        // Post to the override-code channel
-        await codeChannel.send({ embeds: [codeEmbed] });
-    
-        // Mark manually requested existing codes as sent to channel
-        if (!wasGenerated) {
-          const overrideDataUpdate = await loadOverrideCodes();
-          const codeIndex = overrideDataUpdate.codes.findIndex((c) => c.code === code);
-          if (codeIndex !== -1) {
-            overrideDataUpdate.codes[codeIndex].sentToChannel = true;
-            await saveOverrideCodes(overrideDataUpdate);
-          }
-        }
-    
-        // Log generation to LOG_CHANNEL unless actor overridden (sendLogIfNotOverridden checks this)
-        await sendLogIfNotOverridden(interaction.guild, LOG_CHANNEL, codeEmbed, interaction.user.id);
-    
-        const sentReply = { content: `✅ Override code has been sent to <#${OVERRIDE_CODE_CHANNEL}>`, ephemeral: true };
-        return interaction.reply(sentReply);
-      } else {
-        // Actor is overridden and NOT staff -> send DM privately and do NOT mark sentToChannel
-        let dmSent = false;
-        const privateEmbed = new EmbedBuilder()
-          .setColor(0x2ecc71)
-          .setTitle("🔐 Override Code (Private)")
-          .setDescription("You generated or viewed an override code. It was not posted publicly.")
-          .addFields(
-            { name: "Override Code", value: `\`${code}\`` },
-            { name: "Valid For", value: "One-time use only" },
-            { name: "Command", value: "Ban" },
-          )
-          .setTimestamp();
-    
-        try {
-          await interaction.user.send({ embeds: [privateEmbed] });
-          dmSent = true;
-        } catch (dmError) {
-          console.error(`Failed to DM override code to ${interaction.user.tag}:`, dmError);
-          dmSent = false;
-        }
-    
-        // Reply ephemerally to confirm (so the user sees immediate feedback)
-        if (dmSent) {
-          return interaction.reply({ content: `✅ Override code generated and sent to your DMs (private).`, ephemeral: true });
-        } else {
-          return interaction.reply({ content: `⚠️ Override code generated but I couldn't DM you (check your privacy settings).`, ephemeral: true });
-        }
-      }
-    } catch (error) {
-      console.error("Failed to send override code to channel/DM:", error);
-      return interaction.reply({
-        content: `❌ Failed to deliver override code.`,
-        ephemeral: true,
-      });
     }
-
 
     case "kick": {
       // Check permission
