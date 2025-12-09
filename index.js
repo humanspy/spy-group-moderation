@@ -828,7 +828,6 @@ client.on("interactionCreate", async (interaction) => {
       const reason = interaction.options.getString("reason");
       const severity = interaction.options.getString("severity") || "moderate";
       const timeoutMinutes = interaction.options.getInteger("timeout");
-      const silent = interaction.options.getBoolean("silent") || false;
 
       // Make warn silent by default for override users
       let silent = interaction.options.getBoolean("silent") || false;
