@@ -54,8 +54,7 @@ export const commands = [
         )
     )
     .addStringOption((o) => o.setName("reason").setDescription("Reason").setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-
+  
   new SlashCommandBuilder()
     .setName("ban")
     .setDescription("Ban a user")
