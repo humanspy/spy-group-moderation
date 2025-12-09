@@ -101,11 +101,6 @@ const userOverrides = {
   },
 };
 
-// --- Utility: check if user is in overrides ---
-function isUserOverridden(userId) {
-  return !!userOverrides[userId];
-}
-
 /**
  * Send a log embed to the configured log channel.
  *
