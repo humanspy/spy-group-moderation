@@ -443,6 +443,59 @@ function isModerator(member) {
   return false;
 }
 
+// --- Helper: parse duration option (supports fixed-choice strings or numeric input) ---
+function parseDurationChoice(input) {
+  // Accept numbers directly (minutes)
+  if (typeof input === "number") return input;
+
+  if (!input) return null;
+  const s = String(input).trim().toLowerCase();
+
+  // normalize common labels (with/without spaces)
+  const normalized = s.replace(/\s+/g, "");
+
+  const map = {
+    "1min": 1,
+    "1minute": 1,
+    "1": 1,
+    "5min": 5,
+    "5minute": 5,
+    "5": 5,
+    "10min": 10,
+    "10minute": 10,
+    "10": 10,
+    "1hour": 60,
+    "1h": 60,
+    "hour": 60,
+    "1day": 1440,
+    "1d": 1440,
+    "day": 1440,
+    "1week": 10080,
+    "1w": 10080,
+    "week": 10080
+  };
+
+  if (map[normalized] !== undefined) return map[normalized];
+
+  // If input was something like "60" parse as minutes
+  const asNumber = parseInt(s, 10);
+  if (!isNaN(asNumber)) return asNumber;
+
+  return null;
+}
+
+function getDurationLabel(minutes) {
+  const labels = {
+    1: "1 minute",
+    5: "5 minutes",
+    10: "10 minutes",
+    60: "1 hour",
+    1440: "1 day",
+    10080: "1 week",
+  };
+  return labels[minutes] || `${minutes} minute(s)`;
+}
+
 // --- Create client ---
 const client = new Client({
   intents: [
@@ -1031,7 +1084,7 @@ client.on("interactionCreate", async (interaction) => {
         .setDescription("Role requirements are shown for each command.")
         .addFields(
           { name: "⚠️ /warn @user <reason>", value: "Warn a user with options:\n• **severity**: ⚠️ Minor | 🔶 Moderate | 🔴 Severe\n• **timeout**: Timeout duration (1-40320 min)\n• **silent**: Skip sending DM to user\n**Required Role:** Trial Moderator+", inline: false },
-          { name: "⏱️ /timeout @user <duration> <reason>", value: "Timeout a user without warning\n**Required Role:** Trial Moderator+", inline: false },
+          { name: "⏱️ /timeout @user <duration> <reason>", value: "Timeout a user without warning\n**Duration choices:** 1min, 5 min, 10 min, 1 hour, 1 day, 1 week\n**Required Role:** Trial Moderator+", inline: false },
           { name: "👢 /kick @user <reason>", value: "Kick a user from the server\n**Required Role:** Moderator+", inline: false },
           { name: "🔨 /ban <target> <reason>", value: "Ban a user from the server\n• **target**: User @mention or User ID\n• **hackban**: Enable hackban mode (ban by ID)\n• **delete_days**: Delete message history (0-7 days)\n• **override_code**: Override code for Trial Mod/Mod\n**Required Role:** Head Moderator+ (or Trial Mod+ with override code)", inline: false },
           { name: "✅ /unban <user_id> <reason>", value: "Unban a user from the server\n• Leave **user_id** empty to see banned list\n• **override_code**: Override code for Trial Mod/Mod\n**Required Role:** Head Moderator+ (or Trial Mod+ with override code)", inline: false },
@@ -1058,7 +1111,24 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       const targetUser = interaction.options.getUser("user");
-      const duration = interaction.options.getInteger("duration");
+
+      // We now prefer a fixed-choice duration option (string) but accept integer for backward compatibility.
+      // Allowed fixed choices: "1min", "5 min", "10 min", "1 hour", "1 day", "1 week"
+      const durationString = interaction.options.getString("duration");
+      const durationInteger = interaction.options.getInteger("duration");
+      const parsedDuration = parseDurationChoice(durationString ?? durationInteger);
+
+      if (!parsedDuration || parsedDuration <= 0) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor(0xe74c3c)
+          .setTitle("❌ Invalid Duration")
+          .setDescription("Please provide a valid duration. Allowed choices: `1min`, `5 min`, `10 min`, `1 hour`, `1 day`, `1 week`.")
+          .setTimestamp();
+
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+      }
+
+      const duration = parsedDuration; // minutes
       const reason = interaction.options.getString("reason");
 
       // Apply timeout first
@@ -1091,7 +1161,7 @@ client.on("interactionCreate", async (interaction) => {
           .addFields(
             { name: "Reason", value: "Missing permissions or user is an administrator", inline: false },
             { name: "User", value: targetUser.tag, inline: true },
-            { name: "Requested Duration", value: `${duration} minute(s)`, inline: true }
+            { name: "Requested Duration", value: `${getDurationLabel(duration)} (${duration} minute(s))`, inline: true }
           )
           .setTimestamp();
 
@@ -1133,7 +1203,7 @@ client.on("interactionCreate", async (interaction) => {
             { name: "Member", value: `${targetUser.tag} (${targetUser.id})`, inline: true },
             { name: "Case #", value: caseNumber ? `#${caseNumber}` : "N/A", inline: true },
             { name: "Moderator", value: `${interaction.user.tag}`, inline: true },
-            { name: "Duration", value: `${duration} minute(s)`, inline: true },
+            { name: "Duration", value: `${getDurationLabel(duration)} (${duration} minute(s))`, inline: true },
             { name: "Reason", value: reason }
           )
           .setTimestamp()
@@ -1151,9 +1221,9 @@ client.on("interactionCreate", async (interaction) => {
         .setThumbnail(targetUser.displayAvatarURL())
         .addFields(
           { name: "Case Number", value: caseNumber ? `#${caseNumber}` : "N/A", inline: true },
-          { name: "Duration", value: `${duration} minute(s)`, inline: true },
+          { name: "Duration", value: `${getDurationLabel(duration)} (${duration} minute(s))`, inline: true },
           { name: "Moderator", value: interaction.user.tag, inline: true },
-          { name: "Reason", value: reason }
+          { name: "Reason", value: reason, inline: false }
         )
         .setTimestamp()
         .setFooter({ text: `User ID: ${targetUser.id}` });
