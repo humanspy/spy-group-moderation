@@ -53,7 +53,7 @@ export const commands = [
           { name: "1 week", value: "1week" }
         )
     )
-    .addStringOption((o) => o.setName("reason").setDescription("Reason").setRequired(true))
+    .addStringOption((o) => o.setName("reason").setDescription("Reason").setRequired(true)),
   
   new SlashCommandBuilder()
     .setName("ban")
