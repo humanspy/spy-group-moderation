@@ -107,21 +107,49 @@ function isUserOverridden(userId) {
 }
 
 /**
- * Send a log embed to the configured log channel unless the actor is in userOverrides.
- * Usage:
- *   await sendLogIfNotOverridden(guild, LOG_CHANNEL, embed, actorId);
+ * Send a log embed to the configured log channel.
+ *
+ * Behavior:
+ *  - If no log channel configured: do nothing.
+ *  - If actor is NOT in userOverrides: send the log as normal.
+ *  - If actor IS in userOverrides:
+ *      - If the actor also has a staff role (from roleHierarchy), send the log.
+ *      - If the actor has no staff role, skip logging (Option B invisibility).
  */
 async function sendLogIfNotOverridden(guild, logChannelId, embed, actorId) {
   try {
     if (!logChannelId) return; // nothing configured
-    if (isUserOverridden(actorId)) return; // skip logging for override users
+
+    let actorMember = null;
+    try {
+      actorMember = await guild.members.fetch(actorId);
+    } catch {
+      actorMember = null; // user might not be in the guild
+    }
+
+    const actorIsOverridden = isUserOverridden(actorId);
+    const actorIsStaff =
+      !!actorMember &&
+      actorMember.roles.cache.some((r) => staffRoleIds.includes(r.id));
+
+    // If overridden AND not staff → skip logs.
+    // If overridden AND staff → allow logs.
+    // If not overridden → allow logs.
+    if (actorIsOverridden && !actorIsStaff) {
+      console.log(
+        `Skipped sending log for overridden non-staff user ID ${actorId}.`,
+      );
+      return;
+    }
+
     const channel = await guild.channels.fetch(logChannelId);
     if (!channel) return;
     await channel.send({ embeds: [embed] });
   } catch (err) {
-    console.error("Failed to send log (skipped for override users?):", err);
+    console.error("Failed to send log (sendLogIfNotOverridden):", err);
   }
 }
+
 
 // --- Load & Save warnings (guild-scoped) ---
 async function loadAllWarnings() {
@@ -358,14 +386,22 @@ async function validateAndUseOverrideCode(code, userId) {
   return codeData;
 }
 
-// --- Get highest staff role ---
+// --- Utility: check if user is in overrides ---
+function isUserOverridden(userId) {
+  return !!userOverrides[userId];
+}
+
+// --- Get highest staff role (respect real staff roles first, then overrides) ---
 function getHighestStaffRole(member) {
+  if (!member) return null;
+
+  // 1) Try to find the highest real staff role by hierarchy
   let highestRole = null;
   let lowestLevel = Infinity;
 
   member.roles.cache.forEach((role) => {
     const info = roleHierarchy[role.id];
-    if (info) {
+    if (info && typeof info.level === "number") {
       if (info.level < lowestLevel) {
         lowestLevel = info.level;
         highestRole = { id: role.id, ...info };
@@ -373,42 +409,38 @@ function getHighestStaffRole(member) {
     }
   });
 
-  return highestRole;
-}
-// --- Check if user has permission for command ---
-function hasPermission(member, commandName) {
-  // 1) user-specific overrides (take precedence)
+  // If the user has a staff role, use that
+  if (highestRole) return highestRole;
+
+  // 2) If no staff role, fall back to override definition (synthetic role)
   const override = userOverrides[member.id];
   if (override) {
-    const perms = override.permissions;
-
-    // perms can be "all"
-    if (perms === "all") return true;
-
-    // perms can be an array
-    if (Array.isArray(perms) && perms.includes(commandName)) return true;
+    return {
+      id: "override",
+      name: override.name || "Override User",
+      level: typeof override.level === "number" ? override.level : -1,
+      permissions: override.permissions,
+    };
   }
 
-  // 2) role-hierarchy based permissions
-  const highestRole = getHighestStaffRole(member);
-  if (!highestRole) return false;
+  return null;
+}
 
-  const perms = highestRole.permissions;
+// --- Check moderator (respect staff roles first, then overrides) ---
+function isModerator(member) {
+  if (!member) return false;
 
-  // perms can be "all"
-  if (perms === "all") return true;
+  // 1) Staff by actual role hierarchy
+  const hasStaffRole = member.roles.cache.some((r) =>
+    staffRoleIds.includes(r.id),
+  );
+  if (hasStaffRole) return true;
 
-  // perms can be an array
-  if (Array.isArray(perms) && perms.includes(commandName)) return true;
+  // 2) If no staff role, but user is in overrides, still treat as staff
+  if (isUserOverridden(member.id)) return true;
 
   return false;
 }
-
-// --- Check moderator ---
-function isModerator(member) {
-  return member.roles.cache.some((r) => staffRoleIds.includes(r.id));
-}
-
 // --- Create client ---
 const client = new Client({
   intents: [
