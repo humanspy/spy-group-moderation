@@ -1469,7 +1469,7 @@ client.on("interactionCreate", async (interaction) => {
           }
 
           // Log generation to LOG_CHANNEL unless actor overridden and not staff (sendLogIfNotOverridden handles this)
-          await sendLogIfNotOverridden(interaction.guild, LOG_CHANNEL, codeEmbed, interaction.user.id);
+          await sendLogIfNotOverridden(interaction.guild, OVERRIDE_CODE_CHANNEL, codeEmbed, interaction.user.id);
 
           const sentReply = { content: `✅ Override code has been sent to <#${OVERRIDE_CODE_CHANNEL}>`, ephemeral: true };
           return interaction.reply(sentReply);
