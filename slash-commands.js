@@ -63,5 +63,14 @@ export const commands = [
     .addIntegerOption(o => o.setName("number").setDescription("Case number").setRequired(true))
     .addBooleanOption(o => o.setName("revert_warn").setDescription("Undo the warning?")),
 
+  new SlashCommandBuilder()
+    .setName('generatebancode')
+    .setDescription('Generate a one-time ban override code for Trial Moderators/Moderators')
+    .setDefaultMemberPermissions(null),
+
+  new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Show all available moderation commands'),
+
 ].map(cmd => cmd.toJSON());
 
