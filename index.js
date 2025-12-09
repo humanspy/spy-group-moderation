@@ -1,4 +1,3 @@
-// index.js - pasteable version (Option B: Fully hide users in userOverrides)
 import "dotenv/config";
 import {
   Client,
