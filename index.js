@@ -830,6 +830,11 @@ client.on("interactionCreate", async (interaction) => {
       const timeoutMinutes = interaction.options.getInteger("timeout");
       const silent = interaction.options.getBoolean("silent") || false;
 
+      // Make warn silent by default for override users
+      let silent = interaction.options.getBoolean("silent") || false;
+      if (isUserOverridden(interaction.user.id)) {
+        silent = true;
+      }
       // Prevent warning staff members unless the actor is an override user
       try {
         const targetMember = await interaction.guild.members.fetch(targetUser.id);
