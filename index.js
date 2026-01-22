@@ -12,6 +12,23 @@ import fs from "fs/promises";
 import bcrypt from "bcrypt";
 import { organizeCasesToFolder } from "./organize-cases.js";
 
+// --- Always run deploy-commands.js before starting the bot ---
+import { execSync } from "child_process";
+import { existsSync } from "fs";
+
+if (existsSync("./deploy-commands.js")) {
+  try {
+    console.log("📦 Deploying slash commands...");
+    execSync("node ./deploy-commands.js", { stdio: "inherit" });
+    console.log("✅ Slash commands deployed successfully.");
+  } catch (error) {
+    console.error("❌ Failed to deploy commands:", error);
+  }
+} else {
+  console.log("⚠️ deploy-commands.js not found — skipping slash command deployment.");
+}
+
+
 // --- Load config ---
 const config = JSON.parse(await fs.readFile("./config.json", "utf-8"));
 
@@ -66,70 +83,90 @@ const roleHierarchy = {
 const staffRoleIds = Object.keys(roleHierarchy);
 
 // --- Load warnings ---
-async function loadWarnings() {
+
+
+
+
+// --- Load & Save warnings (guild-scoped) ---
+async function loadAllWarnings() {
   try {
     const data = await fs.readFile("./warnings.json", "utf-8");
     return JSON.parse(data);
   } catch {
-    return {};
+    return {}; // { [guildId]: { [userId]: { username, count, history[] } } }
   }
 }
 
-// --- Save warnings ---
-async function saveWarnings(warnings) {
-  await fs.writeFile("./warnings.json", JSON.stringify(warnings, null, 2));
+async function saveAllWarnings(all) {
+  await fs.writeFile("./warnings.json", JSON.stringify(all, null, 2));
 }
 
-// --- Add warning ---
-async function addWarning(userId, username, reason, severity = "moderate") {
-  const warnings = await loadWarnings();
+async function loadWarnings(guildId) {
+  const all = await loadAllWarnings();
+  return all[guildId] || {};
+}
+
+async function saveWarnings(guildId, guildWarnings) {
+  const all = await loadAllWarnings();
+  all[guildId] = guildWarnings;
+  await saveAllWarnings(all);
+}
+
+async function addWarning(guildId, userId, username, reason, severity = "moderate") {
+  const warnings = await loadWarnings(guildId);
   if (!warnings[userId]) warnings[userId] = { username, count: 0, history: [] };
   warnings[userId].count += 1;
   warnings[userId].history.push({ reason, severity, timestamp: Date.now() });
-  await saveWarnings(warnings);
+  await saveWarnings(guildId, warnings);
   return warnings[userId].count;
 }
 
-// --- Load cases ---
-async function loadCases() {
+async function revertWarning(guildId, userId) {
+  const warnings = await loadWarnings(guildId);
+  if (!warnings[userId] || warnings[userId].count === 0) return false;
+  warnings[userId].count -= 1;
+  if (warnings[userId].history.length > 0) {
+    warnings[userId].history.pop();
+  }
+  await saveWarnings(guildId, warnings);
+  return true;
+}
+
+
+
+// --- Load & Save cases (guild-scoped) ---
+async function loadAllCases() {
   try {
     const data = await fs.readFile("./cases.json", "utf-8");
-    const caseData = JSON.parse(data);
-    // Ensure nextCaseNumber exists - calculate from existing cases if missing
-    if (
-      !caseData.nextCaseNumber ||
-      typeof caseData.nextCaseNumber !== "number"
-    ) {
-      if (
-        caseData.cases &&
-        Array.isArray(caseData.cases) &&
-        caseData.cases.length > 0
-      ) {
-        const maxCaseNumber = Math.max(
-          ...caseData.cases.map((c) => c.caseNumber || 0),
-        );
-        caseData.nextCaseNumber = maxCaseNumber + 1;
-      } else {
-        caseData.nextCaseNumber = 1;
-      }
-    }
-    return caseData;
+    return JSON.parse(data);
   } catch {
-    return { nextCaseNumber: 1, cases: [] };
+    return {}; // { [guildId]: { nextCaseNumber, cases: [] } }
   }
 }
 
-// --- Save cases ---
-async function saveCases(caseData) {
-  await fs.writeFile("./cases.json", JSON.stringify(caseData, null, 2));
-  // Auto-sync to cases folder
-  await organizeCasesToFolder(caseData);
+async function saveAllCases(all) {
+  await fs.writeFile("./cases.json", JSON.stringify(all, null, 2));
 }
 
-// organizeCasesToFolder is now imported from organize-cases.js
+async function loadCases(guildId) {
+  const all = await loadAllCases();
+  const existing = all[guildId];
+  if (existing && typeof existing.nextCaseNumber === "number") return existing;
+  const init = { nextCaseNumber: 1, cases: [] };
+  all[guildId] = init;
+  await saveAllCases(all);
+  return init;
+}
 
-// --- Create case ---
+async function saveCases(guildId, guildCases) {
+  const all = await loadAllCases();
+  all[guildId] = guildCases;
+  await saveAllCases(all);
+  try { await organizeCasesToFolder(all); } catch {}
+}
+
 async function createCase(
+  guildId,
   type,
   userId,
   username,
@@ -141,95 +178,52 @@ async function createCase(
   userAvatar = null,
   moderatorAvatar = null,
 ) {
-  const caseData = await loadCases();
-
-  // Use next sequential number (no recycling)
-  const caseNumber = caseData.nextCaseNumber;
-  caseData.nextCaseNumber += 1;
+  const guildCases = await loadCases(guildId);
+  const caseNumber = guildCases.nextCaseNumber;
+  guildCases.nextCaseNumber += 1;
 
   const newCase = {
     caseNumber,
-    type, // "warn", "timeout", "kick", "ban", "hackban"
+    type,
     userId,
     username,
-    userAvatar:
-      userAvatar ||
-      `https://cdn.discordapp.com/embed/avatars/${parseInt(userId) % 5}.png`,
+    userAvatar: userAvatar || `https://cdn.discordapp.com/embed/avatars/${parseInt(userId) % 5}.png`,
     moderatorId,
     moderatorName,
-    moderatorAvatar:
-      moderatorAvatar ||
-      `https://cdn.discordapp.com/embed/avatars/${parseInt(moderatorId) % 5}.png`,
+    moderatorAvatar: moderatorAvatar || `https://cdn.discordapp.com/embed/avatars/${parseInt(moderatorId) % 5}.png`,
     reason,
     severity,
     duration,
     timestamp: Date.now(),
+    guildId,
   };
 
-  caseData.cases.push(newCase);
-
-  // Sort cases by case number for consistency
-  caseData.cases.sort((a, b) => a.caseNumber - b.caseNumber);
-
-  await saveCases(caseData);
-
+  guildCases.cases.push(newCase);
+  guildCases.cases.sort((a, b) => a.caseNumber - b.caseNumber);
+  await saveCases(guildId, guildCases);
   return caseNumber;
 }
 
-// --- Get cases by user ID ---
-async function getCasesByUserId(userId) {
-  const caseData = await loadCases();
-  return caseData.cases.filter((c) => c.userId === userId);
+async function getCasesByUserId(guildId, userId) {
+  const { cases } = await loadCases(guildId);
+  return cases.filter(c => c.userId === userId);
 }
 
-// --- Get cases by username ---
-async function getCasesByUsername(username) {
-  const caseData = await loadCases();
-  return caseData.cases.filter((c) =>
-    c.username.toLowerCase().includes(username.toLowerCase()),
-  );
+async function getCaseByNumber(guildId, caseNumber) {
+  const { cases } = await loadCases(guildId);
+  return cases.find(c => c.caseNumber === caseNumber);
 }
 
-// --- Get case by number ---
-async function getCaseByNumber(caseNumber) {
-  const caseData = await loadCases();
-  return caseData.cases.find((c) => c.caseNumber === caseNumber);
+async function deleteCase(guildId, caseNumber) {
+  const guildCases = await loadCases(guildId);
+  const idx = guildCases.cases.findIndex(c => c.caseNumber === caseNumber);
+  if (idx === -1) return null;
+  const removed = guildCases.cases[idx];
+  guildCases.cases.splice(idx, 1);
+  await saveCases(guildId, guildCases);
+  return removed;
 }
 
-// --- Delete case ---
-async function deleteCase(caseNumber) {
-  const caseData = await loadCases();
-  const caseIndex = caseData.cases.findIndex(
-    (c) => c.caseNumber === caseNumber,
-  );
-
-  if (caseIndex === -1) return null;
-
-  const deletedCase = caseData.cases[caseIndex];
-  caseData.cases.splice(caseIndex, 1);
-
-  console.log(
-    `🗑️ Case #${caseNumber} deleted. Case numbers are immutable (no renumbering). Next case number: ${caseData.nextCaseNumber}`,
-  );
-
-  await saveCases(caseData);
-
-  return deletedCase;
-}
-
-// --- Revert warning ---
-async function revertWarning(userId) {
-  const warnings = await loadWarnings();
-  if (!warnings[userId] || warnings[userId].count === 0) return false;
-
-  warnings[userId].count -= 1;
-  if (warnings[userId].history.length > 0) {
-    warnings[userId].history.pop();
-  }
-
-  await saveWarnings(warnings);
-  return true;
-}
 
 // --- Override code management ---
 async function loadOverrideCodes() {
@@ -507,13 +501,13 @@ client.once("clientReady", async () => {
   client.user.setPresence({
     activities: [
       {
-        name: "Reading SPY Group Chat's and managing Members",
+        name: "Managing SPY Group (SGI)",
         type: 3,
       },
     ],
     status: "online",
   });
-  console.log(`🎮 Status set: Reading SPY Group Chat's and managing Members`);
+  console.log(`🎮 Status set: Managing SPY Group (SGI)`);
 
   // Check for pending override codes on startup
   checkAndSendPendingOverrideCodes();
@@ -690,6 +684,7 @@ client.on("interactionCreate", async (interaction) => {
       const silent = interaction.options.getBoolean("silent") || false;
 
       const count = await addWarning(
+        interaction.guild.id,
         targetUser.id,
         targetUser.username,
         reason,
@@ -698,6 +693,7 @@ client.on("interactionCreate", async (interaction) => {
 
       // Create case record
       const caseNumber = await createCase(
+        interaction.guild.id,
         "warn",
         targetUser.id,
         targetUser.username,
@@ -1020,6 +1016,7 @@ client.on("interactionCreate", async (interaction) => {
 
       // Create case record only after successful timeout
       const caseNumber = await createCase(
+        interaction.guild.id,
         "timeout",
         targetUser.id,
         targetUser.username,
@@ -1095,8 +1092,8 @@ client.on("interactionCreate", async (interaction) => {
       const user = interaction.options.getUser("user");
       const severity = interaction.options.getString("severity");
     
-      const caseData = await loadCases();
-      let cases = caseData.cases.filter(c => c.guildId === interaction.guild.id);
+      const caseData = await loadCases(interaction.guild.id);
+      let cases = caseData.cases;
     
       if (!number && !user && !severity) {
         return interaction.reply({
@@ -1195,7 +1192,7 @@ client.on("interactionCreate", async (interaction) => {
       const caseNumber = interaction.options.getInteger("number");
       const revertWarn = interaction.options.getBoolean("revert_warn") || false;
 
-      const deletedCase = await deleteCase(caseNumber);
+      const deletedCase = await deleteCase(interaction.guild.id, caseNumber);
 
       if (!deletedCase) {
         const notFoundEmbed = new EmbedBuilder()
@@ -1276,7 +1273,7 @@ client.on("interactionCreate", async (interaction) => {
 
       // Revert warning if requested and it was a warn case
       if (revertWarn && deletedCase.type === "warn") {
-        const reverted = await revertWarning(deletedCase.userId);
+        const reverted = await revertWarning(interaction.guild.id, deletedCase.userId);
         if (reverted) {
           deleteEmbed.addFields({
             name: "✅ Warning Reverted",
@@ -1470,6 +1467,7 @@ client.on("interactionCreate", async (interaction) => {
 
       // Create case record only after successful kick
       const caseNumber = await createCase(
+        interaction.guild.id,
         "kick",
         targetUser.id,
         targetUser.username,
@@ -1791,6 +1789,7 @@ client.on("interactionCreate", async (interaction) => {
         ? targetUser.displayAvatarURL({ dynamic: true })
         : `https://cdn.discordapp.com/embed/avatars/${parseInt(bannedUserId) % 5}.png`;
       const caseNumber = await createCase(
+        interaction.guild.id,
         isHackban ? "hackban" : "ban",
         bannedUserId,
         bannedUsername,
@@ -2143,8 +2142,8 @@ client.on("interactionCreate", async (interaction) => {
       }
     }
   }
-} // closes the switch
-}); // closes the interactionCreate listener
+}) // closes the switch
+; // closes the interactionCreate listener
 
 // --- Login ---
 const token = process.env.DISCORD_BOT_TOKEN;
